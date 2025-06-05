@@ -1,23 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Robots Table</title>
-    <script src="/static/index.js" defer></script>
+  <title>REF Robots</title>
 </head>
 <body>
-    <h1>Registered REF Robots</h1>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Model</th>
-            </tr>
-        </thead>
-        <tbody id="robot-table-body">
-            <!-- JS will insert rows here -->
-        </tbody>
-    </table>
+  <h1>Registered Robots</h1>
+  <ul>
+    {% for robot in robots %}
+      <li><strong>{{ robot.name }}</strong> (Model: {{ robot.model }})</li>
+    {% endfor %}
+  </ul>
+
+  <h2>Robot Movements</h2>
+  <div id="movements">Loading...</div>
+
+  <script>
+    async function fetchMovements() {
+      try {
+        const res = await fetch("/movements");
+        const data = await res.json();
+
+        const container = document.getElementById("movements");
+        container.innerHTML = "";
+
+        if (data.length === 0) {
+          container.innerHTML = "<p>No movements recorded yet.</p>";
+          return;
+        }
+
+        const list = document.createElement("ul");
+        data.forEach(m => {
+          const li = document.createElement("li");
+          li.textContent = `${m.timestamp} - ${m.robot} → ${m.action}`;
+          list.appendChild(li);
+        });
+        container.appendChild(list);
+      } catch (error) {
+        document.getElementById("movements").innerHTML = "<p>Error loading data.</p>";
+        console.error(error);
+      }
+    }
+
+    // Initial fetch and auto-refresh every 5 seconds
+    fetchMovements();
+    setInterval(fetchMovements, 5000);
+  </script>
 </body>
 </html>
