@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Form, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -60,6 +60,15 @@ async def read_item(request: Request, id: str):
 @app.get("/movements")
 async def get_movements():
     return get_all_movements()
+
+@app.post("/robots")
+async def create_robot(
+    name: str = Form(...),
+    model: str = Form(...)
+):
+    insert_robot(name, model)
+    return RedirectResponse(url="/", status_code=303)
+
 
 
 if __name__ == "__main__":

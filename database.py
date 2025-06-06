@@ -32,7 +32,7 @@ def insert_robot(name, model):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("INSERT INTO robots (name, model, created_at) VALUES (?, ?, ?)",
-                   (name, model, datetime.now().isoformat()))
+                    (name, model, datetime.now().isoformat()))
     conn.commit()
     conn.close()
 
