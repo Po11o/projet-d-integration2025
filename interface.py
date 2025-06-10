@@ -123,6 +123,7 @@ class RobotControlConsole:
 
         # Send deposit action to server
         self.send_command(f"Deposited cube at Depot {chosen_depot} from Zone {zone_number}")
+        
 
 if __name__ == "__main__":
     root = tk.Tk()
