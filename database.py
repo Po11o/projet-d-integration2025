@@ -1,102 +1,124 @@
 import sqlite3
 import os
 from datetime import datetime
-import uuid
 
 DB_PATH = "data/robots.db"
 
+# Initialize the database and create necessary tables
 def init_db():
     os.makedirs("data", exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    # Robot table
+    
+    # Create tables if they do not exist
+    # This will create the robots, instructions, summary, and telemetry tables
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS robots (
-        id TEXT PRIMARY KEY, -- UUID as TEXT
-        created_at TEXT NOT NULL,
-        nom TEXT
+        id TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL
     )
     """)
-    # Mission table
+    
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS missions (
+    CREATE TABLE IF NOT EXISTS instructions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         robot_id TEXT NOT NULL,
-        cube INTEGER NOT NULL,
-        etat TEXT NOT NULL CHECK(etat IN ('en_cours', 'terminé', 'à_faire')),
+        blocks TEXT NOT NULL,
+        is_completed BOOLEAN DEFAULT FALSE,
         FOREIGN KEY(robot_id) REFERENCES robots(id)
     )
     """)
-    # StatutRobot table
+    
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS statut_robot (
+    CREATE TABLE IF NOT EXISTS summary (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         robot_id TEXT NOT NULL,
-        position TEXT NOT NULL,
-        horodatage TEXT NOT NULL,
-        etat TEXT NOT NULL,
+        average_speed REAL default 0.0,
+        time_stamp default CURRENT_TIMESTAMP,
         FOREIGN KEY(robot_id) REFERENCES robots(id)
     )
     """)
+    
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS telemetry (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        robot_id TEXT NOT NULL,
+        speed REAL NOT NULL,
+        ultrasonic_distance REAL NOT NULL,
+        current_line TEXT NOT NULL,
+        gripper_state TEXT default 'open',
+        time_stamp TEXT default CURRENT_TIMESTAMP,
+        FOREIGN KEY(robot_id) REFERENCES robots(id)
+    )
+    """)
+    
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS summary (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        robot_id TEXT NOT NULL,
+        average_speed REAL,
+        timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(robot_id) REFERENCES robots(id)
+    )
+    """)
+    
     conn.commit()
     conn.close()
 
-def insert_robot(nom=None):
+# insert_robot function to add a new robot to the database used by /robots endpoint
+def insert_robot(robot_id: str) -> str:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    robot_id = str(uuid.uuid4())
     created_at = datetime.now().isoformat()
-    cursor.execute("INSERT INTO robots (id, created_at, nom) VALUES (?, ?, ?)",
-                   (robot_id, created_at, nom))
-    conn.commit()
+    try:
+        cursor.execute(
+            "INSERT INTO robots (id, created_at) VALUES (?, ?)",
+            (robot_id, created_at)
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        raise ValueError(f"Robot with ID {robot_id} already exists")
     conn.close()
     return robot_id
 
-def get_all_robots():
+# Function to get all robots from the database used by /robots endpoint
+def get_all_robots() -> list:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, created_at, nom FROM robots")
+    cursor.execute("SELECT id, created_at FROM robots")
     rows = cursor.fetchall()
     conn.close()
-    return [
-        {"id": r[0], "created_at": r[1], "nom": r[2]}
-        for r in rows
-    ]
+    return [{"id": r[0], "created_at": r[1]} for r in rows]
 
-def insert_mission(robot_id, cube, etat):
+# Function to get a robot by ID used by /robots/{robot_id} endpoint
+def get_robot_instructions(robot_id: str) -> list:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO missions (robot_id, cube, etat) VALUES (?, ?, ?)",
-                   (robot_id, cube, etat))
+    cursor.execute("""
+        SELECT blocks
+        FROM instructions
+        WHERE robot_id = ? AND is_completed = FALSE
+        ORDER BY id ASC
+        LIMIT 1
+    """, (robot_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return [int(x) for x in row[0].split(",")]
+    return []
+
+# Function to mark an instruction as completed used by /instructions/complete endpoint
+def insert_instruction(robot_id: str, blocks: list):
+    valid_blocks = [2, 3, 6, 7, 10]
+    if not all(b in valid_blocks for b in blocks):
+        raise ValueError("Invalid block numbers. Only 2, 3, 6, 7, 10 are allowed.")
+    blocks_str = ",".join(str(b) for b in blocks)
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO instructions (robot_id, blocks) VALUES (?, ?)",
+        (robot_id, blocks_str)
+    )
     conn.commit()
     conn.close()
-
-def get_all_missions():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, robot_id, cube, etat FROM missions")
-    rows = cursor.fetchall()
-    conn.close()
-    return [
-        {"id": r[0], "robot_id": r[1], "cube": r[2], "etat": r[3]}
-        for r in rows
-    ]
-
-def insert_statut_robot(robot_id, position, horodatage, etat):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO statut_robot (robot_id, position, horodatage, etat) VALUES (?, ?, ?, ?)",
-                   (robot_id, position, horodatage, etat))
-    conn.commit()
-    conn.close()
-
-def get_all_statut_robot():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, robot_id, position, horodatage, etat FROM statut_robot")
-    rows = cursor.fetchall()
-    conn.close()
-    return [
-        {"id": r[0], "robot_id": r[1], "position": r[2], "horodatage": r[3], "etat": r[4]}
-        for r in rows
-    ]

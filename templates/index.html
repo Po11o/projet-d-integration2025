@@ -1,140 +1,157 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>REF Robots</title>
-  <style>
-
-    body {
-      font-family: Arial, sans-serif;
-      background: #f7f7f7;
-      color: #333;
-      padding: 20px;
-    }
-    h1, h2 {
-      text-align: center;
-      margin-bottom: 16px;
-    }
-    ul#robots-list {
-      list-style: none;
-      max-width: 600px;
-      margin: 0 auto 24px auto;
-      padding: 0;
-      background: #fff;
-      border-radius: 4px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    ul#robots-list li {
-      padding: 12px 16px;
-      border-bottom: 1px solid #eee;
-    }
-    ul#robots-list li:last-child {
-      border-bottom: none;
-    }
-    ul#robots-list li strong {
-      color: #007ACC;
-    }
-
-    form#add-bot {
-      max-width: 600px;
-      margin: 0 auto 40px auto;
-      display: flex;
-      gap: 8px;
-    }
-    form#add-bot input[type="text"] {
-      flex: 1;
-      padding: 8px 12px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 1rem;
-    }
-    form#add-bot button {
-      padding: 8px 16px;
-      border: none;
-      background: #007ACC;
-      color: #fff;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 1rem;
-    }
-    form#add-bot button:hover {
-      background: #005fa3;
-    }
-    #movements {
-      max-width: 600px;
-      margin: 0 auto;
-      background: #fff;
-      border-radius: 4px;
-      padding: 16px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    #movements ul {
-      list-style: none;
-      max-height: 300px;
-      overflow-y: auto;
-      padding: 0;
-      margin: 0;
-    }
-    #movements ul li {
-      padding: 8px 12px;
-      border-bottom: 1px solid #eee;
-    }
-    #movements ul li:last-child {
-      border-bottom: none;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Robot Control Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .section {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .telemetry, .history {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding: 10px;
+            background: #f8f8f8;
+            border-radius: 4px;
+        }
+        .current {
+            border-left: 4px solid #007acc;
+            padding-left: 10px;
+        }
+        .small {
+            font-size: 0.9em;
+            color: #555;
+        }
+    </style>
 </head>
 <body>
+    <div class="section">
+        <h1>Robot Control Dashboard</h1>
+        <button id="toggleUpdates">Stop Updates</button>
+    </div>
 
-  <h1>Registered Robots</h1>
+    <div class="section">
+        <h2>Active Robots &amp; Current Instructions</h2>
+        <div id="current-instructions"></div>
+    </div>
 
-  <ul id="robots-list">
-    {% for robot in robots %}
-      <li>
-        <strong>{{ robot.name }}</strong>
-        (Model: {{ robot.model }})
-      </li>
-    {% endfor %}
-  </ul>
+    <div class="section">
+        <h2>Instruction History</h2>
+        <div id="instruction-history" class="history"></div>
+    </div>
 
-  <form id="add-bot" action="/robots" method="POST" title="add robot">
-    <input type="text" name="name" placeholder="Robot name" required />
-    <input type="text" name="model" placeholder="Model (e.g. Model-X)" required />
-    <button type="submit">Submit robot</button>
-  </form>
+    <div class="section">
+        <h2>Telemetry History</h2>
+        <div id="telemetry-history" class="history"></div>
+    </div>
 
-  <h2>Robot Movements</h2>
-  <div id="movements">Loading...</div>
+    <div class="section">
+        <h2>Summary</h2>
+        <div id="summary"></div>
+    </div>
 
-  <script>
-    async function fetchMovements() {
-      try {
-        const res = await fetch("/movements");
-        const data = await res.json();
+    <script>
+        let updateInterval;
+        let isUpdating = true;
 
-        const container = document.getElementById("movements");
-        container.innerHTML = "";
-
-        if (data.length === 0) {
-          container.innerHTML = "<p>No movements recorded yet.</p>";
-          return;
+        // Toggle updates on button click (made for easier testing)
+        document.getElementById('toggleUpdates').textContent = 'Stop Updates';
+        function toggleUpdates() {
+            const button = document.getElementById('toggleUpdates');
+            if (isUpdating) {
+                clearInterval(updateInterval);
+                button.textContent = 'Start Updates';
+            } else {
+                updateDashboard();
+                updateInterval = setInterval(updateDashboard, 5000);
+                button.textContent = 'Stop Updates';
+            }
+            isUpdating = !isUpdating;
         }
 
-        const list = document.createElement("ul");
-        data.forEach(m => {
-          const li = document.createElement("li");
-          li.textContent = `${m.timestamp} - ${m.robot} → ${m.action}`;
-          list.appendChild(li);
-        });
-        container.appendChild(list);
-      } catch (error) {
-        document.getElementById("movements").innerHTML = "<p>Error loading data.</p>";
-        console.error(error);
-      }
-    }
+        async function updateDashboard() {
+            try {
+                const robots = await (await fetch('/robots/list')).json();
+
+                // Current instructions
+                const curr = document.getElementById('current-instructions');
+                curr.innerHTML = '';
+                for (const r of robots) {
+                    const inst = await (await fetch(`/instructions?robot_id=${r.id}`)).json();
+                    curr.innerHTML += `
+                        <div class="section">
+                            <h3>${r.id}</h3>
+                            <div class="current">Blocks: ${inst.blocks?.join(', ') || 'None'}</div>
+                        </div>
+                    `;
+                }
+
+                // Instruction history
+                const history = await (await fetch('/instructions/all')).json();
+                const histDiv = document.getElementById('instruction-history');
+                histDiv.innerHTML = history.map(h => `
+                    <div>
+                        <strong>${h.robot_id}</strong>: [${h.blocks.join(', ')}]
+                        ${h.is_completed? '<span class="small">(done)</span>' : ''}
+                    </div>
+                `).join('');
 
 
-  </script>
+                // Telemetry history
+                const teleDiv = document.getElementById('telemetry-history');
+                teleDiv.innerHTML = '';
+                for (const r of robots) {
+                    const tHist = await (await fetch(`/telemetry/all?robot_id=${r.id}`)).json();
+                    teleDiv.innerHTML += `
+                        <div>
+                            <h4>${r.id}</h4>
+                            ${tHist.slice(0,10).map(t => `
+                                <div class="small">
+                                    ${t.time_stamp} — speed:${t.speed.toFixed(2)}, dist:${t.ultrasonic_distance.toFixed(1)}, line:${t.current_line}, grip:${t.gripper_state}
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                // Summary history (all missions)
+                const sumDiv = document.getElementById('summary');
+                sumDiv.innerHTML = '';
+                for (const r of robots) {
+                    const sums = await (await fetch(`/summary?robot_id=${r.id}`)).json();
+                    if (sums.length) {
+                        sumDiv.innerHTML += `<div><h4>${r.id}</h4></div>`;
+                        sums.forEach(s => {
+                            sumDiv.innerHTML += `
+                                <div class="small">
+                                    avg speed = ${s.average_speed.toFixed(2)}
+                                    <span>(${s.time_stamp})</span>
+                                </div>
+                            `;
+                        });
+                    }
+                }
+
+
+            } catch (e) {
+                console.error("Dashboard error", e);
+            }
+        }
+
+        // Initial setup
+        document.getElementById('toggleUpdates').addEventListener('click', toggleUpdates);
+        updateDashboard();
+        updateInterval = setInterval(updateDashboard, 5000);
+    </script>
 </body>
 </html>

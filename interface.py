@@ -1,131 +1,122 @@
 import tkinter as tk
-from tkinter import scrolledtext
+from tkinter import ttk, scrolledtext
 import datetime
 import requests
-import random
 
-ROBOT_ID = 1
-API_URL = "http://localhost:8000/movement"
-
+# Robot Control Console
+# This is a simple GUI application to control robots and send instructions.
 class RobotControlConsole:
     def __init__(self, root):
         self.root = root
-        self.root.title("REF Robot Control Console")
-        self.root.geometry("550x500")
+        self.root.title("Robot Control Console")
+        self.root.geometry("550x600")
+        self.BASE_URL = "http://localhost:8000"  # Add this line at the start of __init__
 
-        # Inventories
-        self.depot1_inventory = 0
-        self.depot2_inventory = 0
+        # Add Robot
+        add_f = tk.LabelFrame(root, text="Add New Robot", padx=10, pady=10)
+        add_f.pack(pady=10)
+        self.mac = tk.Entry(add_f, width=30)
+        self.mac.grid(row=0, column=0, padx=5)
+        self.mac.insert(0, "00:11:22:33:44:55")
+        tk.Button(add_f, text="Add Robot", command=self.add_robot)\
+          .grid(row=0, column=1, padx=5)
 
-        # --- Control buttons ---
-        button_frame = tk.LabelFrame(root, text="Robot Controls", padx=10, pady=10)
-        button_frame.pack(pady=10)
-
-        self.start_btn = tk.Button(button_frame, text="Start", width=15, command=lambda: self.send_command("Start"))
-        self.stop_btn = tk.Button(button_frame, text="Stop", width=15, command=lambda: self.send_command("Stop"))
-
-        self.start_btn.grid(row=0, column=0, padx=5, pady=5)
-        self.stop_btn.grid(row=0, column=1, padx=5, pady=5)
-
-        # --- Zone buttons ---
-        zone_frame = tk.LabelFrame(root, text="Zones", padx=10, pady=10)
-        zone_frame.pack(pady=10)
-
-        self.zone1_btn = tk.Button(zone_frame, text="Zone 1", width=15, command=lambda: self.handle_zone(1))
-        self.zone2_btn = tk.Button(zone_frame, text="Zone 2", width=15, command=lambda: self.handle_zone(2))
-        self.zone3_btn = tk.Button(zone_frame, text="Zone 3", width=15, command=lambda: self.handle_zone(3))
-        self.zone4_btn = tk.Button(zone_frame, text="Zone 4", width=15, command=lambda: self.handle_zone(4))
-        self.zone5_btn = tk.Button(zone_frame, text="Zone 5", width=15, command=lambda: self.handle_zone(5))
-
-        self.zone1_btn.grid(row=0, column=0, padx=5, pady=5)
-        self.zone2_btn.grid(row=0, column=1, padx=5, pady=5)
-        self.zone3_btn.grid(row=0, column=2, padx=5, pady=5)
-        self.zone4_btn.grid(row=1, column=0, padx=5, pady=5)
-        self.zone5_btn.grid(row=1, column=1, padx=5, pady=5)
-
-        # --- Log box ---
-        log_frame = tk.LabelFrame(root, text="Event Log", padx=10, pady=10)
-        log_frame.pack(padx=10, pady=10, fill="both", expand=True)
-
-        self.log_box = scrolledtext.ScrolledText(log_frame, width=70, height=20, state='disabled')
+        # Event Log (must exist before any calls to log())
+        log_f = tk.LabelFrame(root, text="Event Log", padx=10, pady=10)
+        log_f.pack(fill="both", expand=True, padx=10, pady=10)
+        self.log_box = scrolledtext.ScrolledText(log_f, state='disabled', width=70, height=10)
         self.log_box.pack(fill="both", expand=True)
 
-    def log(self, message):
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        # Select Robot
+        sel_f = tk.LabelFrame(root, text="Select Robot", padx=10, pady=10)
+        sel_f.pack(pady=10)
+        self.robot_var = tk.StringVar()
+        self.robot_dd = ttk.Combobox(sel_f, textvariable=self.robot_var, state="readonly")
+        self.robot_dd.pack()
+
+        # Fetch robots now that log_box exists
+        self.refresh_robots()
+
+        # Select Cubes
+        cube_f = tk.LabelFrame(root, text="Select Cubes", padx=10, pady=10)
+        cube_f.pack(pady=10)
+        self.cube_vars = {}
+        for i, c in enumerate([2,3,6,7,10]):
+            var = tk.BooleanVar()
+            self.cube_vars[c] = var
+            tk.Checkbutton(cube_f, text=f"Cube {c}", variable=var)\
+              .grid(row=0, column=i, padx=5)
+        tk.Button(cube_f, text="Send Instructions", command=self.send_instructions)\
+          .grid(row=1, column=0, columnspan=5, pady=10)
+
+    # Refresh the list of robots from the server.
+    def refresh_robots(self):
+        try:
+            r = requests.get(f"{self.BASE_URL}/robots/list")
+            r.raise_for_status()
+            data = r.json()
+            ids = [x["id"] for x in data]
+            self.robot_dd["values"] = ids
+            if ids:
+                self.robot_dd.current(0)
+        except Exception as e:
+            self.log(f"Error fetching robots: {e}")
+
+    # Add a new robot with the MAC address entered in the Entry widget.
+    # This sends a POST request to the /robots endpoint.
+    def add_robot(self):
+        mac = self.mac.get().strip()
+        if not mac:
+            self.log("Please enter a MAC address")
+            return
+        try:
+            print(f"Adding robot with MAC: {mac}")
+            r = requests.post(
+                url=f"{self.BASE_URL}/robots",
+                json={"robot_id": mac}
+            )
+
+            print(f"Response: {r.status_code} {r.text}")
+            if r.status_code == 200:
+                self.log(f"Added robot: {mac}")
+                self.refresh_robots()
+            else:
+                self.log("Error adding robot: " + r.json().get("detail", r.text))
+        except Exception as e:
+            self.log(f"Error adding robot: {e}")
+
+    # Send instructions to the selected robot with the selected cubes.
+    # This sends a POST request to the /instructions endpoint.
+    def send_instructions(self):
+        robot = self.robot_var.get()
+        if not robot:
+            self.log("Please select a robot")
+            return
+        selected = [c for c,v in self.cube_vars.items() if v.get()]
+        if not selected:
+            self.log("Please select at least one cube")
+            return
+        try:
+            r = requests.post(
+                f"{self.BASE_URL}/instructions",
+                json={"robot_id": robot, "blocks": selected}
+            )
+            if r.status_code == 200:
+                self.log(f"Instructions sent: {selected}")
+            else:
+                self.log("Error sending: " + r.json().get("detail", r.text))
+        except Exception as e:
+            self.log(f"Error sending instructions: {e}")
+    
+    # Log messages to the event log box with a timestamp.
+    def log(self, msg):
+        ts = datetime.datetime.now().strftime("%H:%M:%S")
         self.log_box.config(state='normal')
-        self.log_box.insert(tk.END, f"[{timestamp}] {message}\n")
+        self.log_box.insert(tk.END, f"[{ts}] {msg}\n")
         self.log_box.yview(tk.END)
         self.log_box.config(state='disabled')
 
-    def send_command(self, action):
-        try:
-            response = requests.post(API_URL, json={
-                "robot_id": ROBOT_ID,
-                "action": action
-            })
-            if response.status_code == 200:
-                result = response.json()
-                data = result.get("data")
-                if data:
-                    robot_id = data.get("robot_id", "Unknown")
-                    action = data.get("action", "Unknown")
-                    self.log(f"Server confirmed: Robot {robot_id} performed '{action}'")
-                else:
-                    self.log("No movement data received.")
-            else:
-                self.log(f"Error sending command: {response.status_code}")
-        except Exception as e:
-            self.log(f"Error sending command: {e}")
-
-    def handle_zone(self, zone_number):
-        self.log("Moving forward...")
-        self.log(f"Arriving at Zone {zone_number}")
-
-        # Determine turn direction
-        if zone_number == 3:
-            turn_dir = "Turning left"
-        else:
-            turn_dir = "Turning right"
-
-        self.log(turn_dir)
-        self.log("Picking up cube")
-
-        # Decide where to deposit cube
-        if zone_number == 1:
-            if self.depot1_inventory == self.depot2_inventory:
-                chosen_depot = random.choice([1,2])
-                self.log("Depots are equal, choosing random depot...")
-            elif self.depot1_inventory < self.depot2_inventory:
-                chosen_depot = 1
-                self.log("Depot 1 has fewer cubes, choosing Depot 1")
-            else:
-                chosen_depot = 2
-                self.log("Depot 2 has fewer cubes, choosing Depot 2")
-
-        elif zone_number in [2,3]:
-            chosen_depot = 1
-            self.log("Going to Depot 1")
-
-        elif zone_number in [4,5]:
-            chosen_depot = 2
-            self.log("Going to Depot 2")
-
-        # Simulate depositing cube
-        self.log("Turning left")
-        self.log("Moving forward...")
-        self.log(f"Depositing cube at Depot {chosen_depot}")
-
-        # Update inventory
-        if chosen_depot == 1:
-            self.depot1_inventory += 1
-        else:
-            self.depot2_inventory += 1
-
-        # Send deposit action to server
-        self.send_command(f"Deposited cube at Depot {chosen_depot} from Zone {zone_number}")
-        
-
 if __name__ == "__main__":
     root = tk.Tk()
-    app = RobotControlConsole(root)
+    RobotControlConsole(root)
     root.mainloop()
