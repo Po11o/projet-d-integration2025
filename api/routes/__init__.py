@@ -60,7 +60,7 @@ async def get_partial(request: Request, partial_name: str):
             cur = conn.cursor()
             cur.execute("""
                 SELECT speed, ultrasonic_distance, current_line, gripper_state, time_stamp
-                FROM telemetry WHERE robot_id=? ORDER BY id DESC LIMIT 1
+                FROM telemetry WHERE robot_id=? ORDER BY id DESC
             """, (rid,))
             rows = cur.fetchall()
             conn.close()

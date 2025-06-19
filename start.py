@@ -17,7 +17,7 @@ server_proc = subprocess.Popen([
 time.sleep(2)
 
 # Start the Tkinter interface
-gui_proc = subprocess.Popen(["python", "interface.py"])
+gui_proc = subprocess.Popen(["python", "interface/gui.py"])
 
 # Wait for GUI to close to avoid conflicts
 gui_proc.wait()
