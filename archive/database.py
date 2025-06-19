@@ -15,6 +15,7 @@ def init_db():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS robots (
         id TEXT PRIMARY KEY,
+        name TEXT,
         created_at TEXT NOT NULL
     )
     """)
@@ -29,15 +30,6 @@ def init_db():
     )
     """)
     
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS summary (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        robot_id TEXT NOT NULL,
-        average_speed REAL default 0.0,
-        time_stamp default CURRENT_TIMESTAMP,
-        FOREIGN KEY(robot_id) REFERENCES robots(id)
-    )
-    """)
     
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS telemetry (
@@ -45,6 +37,7 @@ def init_db():
         robot_id TEXT NOT NULL,
         speed REAL NOT NULL,
         ultrasonic_distance REAL NOT NULL,
+        displacement_status TEXT NULL,
         current_line TEXT NOT NULL,
         gripper_state TEXT default 'open',
         time_stamp TEXT default CURRENT_TIMESTAMP,
@@ -56,7 +49,6 @@ def init_db():
     CREATE TABLE IF NOT EXISTS summary (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         robot_id TEXT NOT NULL,
-        average_speed REAL,
         timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(robot_id) REFERENCES robots(id)
     )
@@ -66,30 +58,28 @@ def init_db():
     conn.close()
 
 # insert_robot function to add a new robot to the database used by /robots endpoint
-def insert_robot(robot_id: str) -> str:
+def insert_robot(robot_id: str, robot_name: str = None) -> None:
+    if not robot_id:
+        raise ValueError("Robot ID cannot be empty")
+    created_at = datetime.now().isoformat()
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    created_at = datetime.now().isoformat()
-    try:
-        cursor.execute(
-            "INSERT INTO robots (id, created_at) VALUES (?, ?)",
-            (robot_id, created_at)
-        )
-        conn.commit()
-    except sqlite3.IntegrityError:
-        conn.close()
-        raise ValueError(f"Robot with ID {robot_id} already exists")
+    cursor.execute(
+        "INSERT INTO robots (id, name, created_at) VALUES (?, ?, ?)",
+        (robot_id, robot_name, created_at)
+    )
+    conn.commit()
     conn.close()
-    return robot_id
+
 
 # Function to get all robots from the database used by /robots endpoint
 def get_all_robots() -> list:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, created_at FROM robots")
+    cursor.execute("SELECT id, name, created_at FROM robots")
     rows = cursor.fetchall()
     conn.close()
-    return [{"id": r[0], "created_at": r[1]} for r in rows]
+    return [{"id": r[0], "name": r[1], "created_at": r[2]} for r in rows]
 
 # Function to get a robot by ID used by /robots/{robot_id} endpoint
 def get_robot_instructions(robot_id: str) -> list:

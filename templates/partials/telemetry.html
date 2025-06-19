@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="30">
+  <style>
+    body { 
+      font-family: sans-serif; 
+      margin: 0; 
+      background: transparent; 
+      color: #e0e0e0; 
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th {
+      background: #ff6b00;
+      color: #1d1f27;
+      padding: 8px;
+      text-align: left;
+    }
+    td {
+      padding: 8px;
+      border-bottom: 1px solid #3d3f47;
+    }
+    tr:hover {
+      background: rgba(255, 107, 0, 0.1);
+    }
+    .robot-id {
+      color: #ff8c42;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <table>
+    <thead>
+      <tr>
+        <th>Robot Name</th>
+        <th>Speed</th>
+        <th>Distance</th>
+        <th>Line</th>
+        <th>Gripper</th>
+        <th>Timestamp</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for robot in robots %}
+        {% set id = robot.id %}
+        {% for entry in telemetry[id] %}
+          <tr>
+            <td class="robot-id">{{ robot.name }}</td>
+            <td>{{ entry.speed }}</td>
+            <td>{{ entry.ultrasonic_distance }}</td>
+            <td>{{ entry.current_line }}</td>
+            <td>{{ entry.gripper_state }}</td>
+            <td><em>{{ entry.time_stamp }}</em></td>
+          </tr>
+        {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

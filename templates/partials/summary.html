@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="30">
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 15px;
+      background: transparent;
+      color: #e0e0e0;
+    }
+    .summary-card {
+      background: rgba(42, 45, 62, 0.7);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .robot-name {
+      color: #ff8c42;
+      font-weight: bold;
+    }
+    .timestamp {
+      color: #888;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  {% for robot in robots %}
+    {% set rid = robot.id %}
+    <div class="summary-card">
+      <div class="robot-name">{{ robot.name }}</div>
+      {% if summary[rid] %}
+        {% for entry in summary[rid] %}
+          <div class="timestamp">Last Update: {{ entry.time_stamp }}</div>
+        {% endfor %}
+      {% else %}
+        <div class="timestamp">No summary data available</div>
+      {% endif %}
+    </div>
+  {% endfor %}
+</body>
+</html>

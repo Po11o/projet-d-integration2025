@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="5">
+  <style>
+    body { margin: 0; font-family: sans-serif; background: transparent; color: #e0e0e0; }
+    .robot { padding: 10px; border-bottom: 1px solid #444; }
+    h3 { color: #ffa733; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  {% for robot in robots %}
+    {% set id = robot.id %}
+    <div class="robot">
+      <h3>🦾 {{ robot.name }}</h3>
+      <p><strong>Blocks:</strong> {{ instructions[id] | join(', ') }}</p>
+    </div>
+  {% endfor %}
+</body>
+</html>

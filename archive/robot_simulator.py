@@ -30,7 +30,7 @@ class RobotSimulator:
                     print(f"[{datetime.now().isoformat()}] Received instruction blocks: {blocks}")
                     return
                 else:
-                    # no pending instruction yet
+                    # No instruction yet
                     time.sleep(poll_interval)
             except requests.RequestException as e:
                 print(f"[ERROR] polling instructions: {e}")
@@ -43,10 +43,11 @@ class RobotSimulator:
 
         payload = {
             "robot_id": self.robot_id,
-            "speed": speed,
-            "ultrasonic_distance": random.uniform(0, 100),
-            "current_line": self.current_line,
-            "gripper_state": random.choice(["open", "closed"])
+            "vitesse": speed,
+            "distance_ultrasons": random.uniform(0, 100),  # Changed to match main.py
+            "statut_deplacement": "moving",
+            "ligne": self.current_line,
+            "statut_pince": random.choice(["open", "closed"])
         }
 
         try:
@@ -75,16 +76,16 @@ class RobotSimulator:
 
     def run(self):
         print(f"=== Starting simulator for robot {self.robot_id} ===")
-        # 1) wait for instructions
+        # 1) Wait for instructions
         self.wait_for_instruction()
 
-        # 2) execute mission (13 lines)
+        # 2) Execute mission (13 lines)
         while self.current_line <= 13:
             self.send_telemetry()
             time.sleep(5)
             self.current_line += 1
 
-        # 3) send summary
+        # 3) Send summary
         print("=== Mission complete, sending summary ===")
         self.send_summary()
         print(f"=== {self.robot_id} done ===")

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 15px;
+      background: transparent;
+      color: #e0e0e0;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    input, button {
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #3d3f47;
+      background: #2a2d3e;
+      color: #e0e0e0;
+    }
+    button {
+      background: #ff6b00;
+      color: #1d1f27;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #ff8c42;
+    }
+    .error {
+      color: #ff4444;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h3>🧬 Add New Pathfinder Unit</h3>
+  <form method="post" action="/api/robots" target="_parent">
+    <input type="text" name="robot_id" 
+           pattern="[A-Za-z0-9\-]+" 
+           title="Only letters, numbers, and hyphens allowed"
+           placeholder="Robot ID" required>
+    <input type="text" name="name" 
+           pattern="[A-Za-z0-9\s\-]+" 
+           title="Only letters, numbers, spaces, and hyphens allowed"
+           placeholder="Robot Name" required>
+    <button type="submit">🚀 Deploy</button>
+  </form>
+</body>
+</html>
