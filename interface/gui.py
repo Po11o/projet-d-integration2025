@@ -7,7 +7,7 @@ class RobotControlMinimal:
     def __init__(self, root):
         self.root = root
         self.root.title("Command Console")
-        self.API_URL = "http://localhost:8000/api"
+        self.API_URL = "http://localhost:8000"
         self.root.configure(bg="#1c1f2b")
 
         self.blocks = {
@@ -97,7 +97,7 @@ class RobotControlMinimal:
             robots = response.json()
             
             self.robot_options = {
-                f"{robot['name']} ({robot['id']})": robot['id']
+                f"{robot.get('name', '')} ({robot['id']})": robot['id']
                 for robot in robots
             }
             self.robot_dd["values"] = list(self.robot_options.keys())
@@ -122,7 +122,7 @@ class RobotControlMinimal:
 
         try:
             response = requests.post(
-                f"{self.API_URL}/instructions",
+                f"{self.API_URL}/instructions/create",
                 json={"robot_id": robot_id, "blocks": blocks}
             )
             response.raise_for_status()
